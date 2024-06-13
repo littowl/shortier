@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -55,8 +55,6 @@ func (db DB) CreateHash(link Link) error {
 
 	hash := generateHash()
 	_, err = conn.Exec(context.Background(), "INSERT INTO links(link, hash) VALUES ($1, $2)", link.Link, hash)
-	// err = conn.QueryRow(context.Background(),
-	// 	"INSERT INTO links(link, hash) VALUES ($1, $2) RETURNING id", link.Link, hash).Scan(&link.Id)
 
 	if err != nil {
 		return fmt.Errorf("unable to INSERT: %v", err)
@@ -87,7 +85,14 @@ func (db DB) GetById(id int) (*string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unable to scan row: %v", err)
 		}
-		shortLink = strings.Split(l.Link, "/")[0] + "/" + l.Hash
+
+		parsedURL, err := url.Parse(l.Link)
+		if err != nil {
+			return nil, fmt.Errorf("URL parse error: %v", err)
+		}
+
+		baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+		shortLink = baseURL + "/" + l.Hash
 	}
 
 	return &shortLink, nil
